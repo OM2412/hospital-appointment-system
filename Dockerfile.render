@@ -1,0 +1,55 @@
+# ============================================
+# Hospital Appointment System - Render.com Optimized
+# Optimized for Render's caching and build system
+# ============================================
+
+# Stage 1: Build Backend (Maven)
+FROM maven:3.9-eclipse-temurin-25 AS backend-build
+
+WORKDIR /build
+
+COPY backend/pom.xml ./backend/
+RUN cd backend && mvn dependency:go-offline -q
+
+COPY backend/src ./backend/src
+RUN cd backend && mvn clean package -DskipTests -q
+
+# Stage 2: Build Frontend (Node)
+FROM node:20-alpine AS frontend-build
+
+WORKDIR /build
+
+COPY package.json package-lock.json ./
+RUN npm ci && npm audit fix --force
+
+COPY index.html vite.config.js ./
+COPY src ./src
+
+ENV NODE_ENV=production
+RUN npm run build || (echo "Build failed" && npm run build --verbose)
+
+# Stage 3: Runtime
+FROM eclipse-temurin:25-jre-alpine
+
+WORKDIR /app
+
+# Install curl and bash for Render
+RUN apk add --no-cache curl bash
+
+# Copy backend
+COPY --from=backend-build /build/backend/target/hospital-backend*.war app.war
+
+# Copy frontend dist
+RUN mkdir -p /app/static
+COPY --from=frontend-build /build/dist /app/static/
+
+# Port (Render sets $PORT via environment)
+EXPOSE 8080
+
+# Health check for Render
+HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
+  CMD curl -f http://localhost:${PORT:-8080}/health || exit 1
+
+# Render provides $PORT variable
+CMD ["java", "-Dserver.port=${PORT:-8080}", "-jar", "app.war"]
+

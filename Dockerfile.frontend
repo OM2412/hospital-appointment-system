@@ -1,0 +1,36 @@
+# ============================================
+# Frontend Service Only (for separate deployment)
+# Use this if deploying frontend separately
+# ============================================
+
+# Stage 1: Build with Node
+FROM node:20-alpine AS builder
+
+WORKDIR /build
+
+COPY package.json package-lock.json ./
+RUN npm ci && npm audit fix --force
+
+COPY index.html vite.config.js ./
+COPY src ./src
+
+ENV NODE_ENV=production
+RUN npm run build || (echo "Build failed" && npm run build --verbose)
+
+# Stage 2: Serve with Node
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Install serve to run the static build
+RUN npm install -g serve
+
+# Copy built files
+COPY --from=builder /build/dist ./
+
+EXPOSE 3000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD wget --quiet --tries=1 --spider http://localhost:3000/ || exit 1
+
+CMD ["serve", "-s", ".", "-l", "3000"]

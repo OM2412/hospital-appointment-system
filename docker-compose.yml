@@ -1,0 +1,86 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: hospital_postgres
+    environment:
+      POSTGRES_DB: hospital_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend API Server
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hospital_backend
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/hospital_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      JWT_SECRET: your_secret_key_change_in_production
+      JWT_EXPIRATION: 86400000
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - hospital-network
+
+  # Email Service (Node.js / Nodemailer)
+  email-service:
+    build:
+      context: ./email-service
+    container_name: hospital_email
+    ports:
+      - "5001:5001"
+    environment:
+      - PORT=5001
+    networks:
+      - hospital-network
+
+  # ML Service (Python / AI)
+  ml-service:
+    build:
+      context: ./ml_service
+    container_name: hospital_ml
+    ports:
+      - "8000:8000"
+    networks:
+      - hospital-network
+
+  # Frontend Development Server
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: hospital_frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+      - email-service
+    networks:
+      - hospital-network
+    environment:
+      - VITE_API_URL=http://localhost:8080/api
+      - VITE_EMAIL_SERVICE_URL=http://localhost:5001
+
+volumes:
+  postgres_data:
+
+networks:
+  hospital-network:
+    driver: bridge

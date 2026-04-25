@@ -1,0 +1,34 @@
+# NOTE: Render.com does NOT use render.yaml for configuration
+# This file is for REFERENCE ONLY
+# 
+# Actual deployment is configured through:
+# 1. Render Dashboard (UI)
+# 2. Environment Variables (set in dashboard)
+# 3. GitHub integration (automatic detection from repo)
+#
+# Services Configuration Reference:
+#
+# Backend Service:
+#   - Name: hospital-backend
+#   - Type: Web Service
+#   - GitHub: your-repo
+#   - Build: cd backend && mvn clean package -DskipTests
+#   - Start: java -Dserver.port=$PORT -jar backend/target/hospital-backend-0.0.1-SNAPSHOT.war
+#
+# Frontend Service:
+#   - Name: hospital-frontend
+#   - Type: Web Service
+#   - GitHub: your-repo
+#   - Build: npm install && npm run build
+#   - Start: npm run preview -- --host 0.0.0.0 --port $PORT
+#
+# Database Service:
+#   - Name: hospital-db
+#   - Type: PostgreSQL (managed service)
+#   - Plan: Standard
+#   - Region: us-east-1
+#
+# For deployment instructions, see:
+# - RENDER_QUICK_START.md
+# - RENDER_ENV_SETUP.md
+# - RENDER_DEPLOYMENT_STEPS.md
